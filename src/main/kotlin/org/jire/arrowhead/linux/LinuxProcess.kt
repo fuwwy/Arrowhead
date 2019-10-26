@@ -20,12 +20,14 @@ import com.sun.jna.Pointer
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap
 import org.jire.arrowhead.Module
 import org.jire.arrowhead.Process
-import java.lang.Long.parseLong
+import java.math.BigInteger
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.*
 
 class LinuxProcess(override val id: Int) : Process {
+
+	private val LONG_MAX_VALUE = BigInteger.valueOf(Long.MAX_VALUE)
 
 	private val local = ThreadLocal.withInitial { iovec() }
 	private val remote = ThreadLocal.withInitial { iovec() }
@@ -41,11 +43,14 @@ class LinuxProcess(override val id: Int) : Process {
 			val split = line.split(" ")
 			val regionSplit = split[0].split("-")
 
-			val start = parseLong(regionSplit[0], 16)
-			val end = parseLong(regionSplit[1], 16)
+			val start = BigInteger(regionSplit[0], 16)
+			val end = BigInteger(regionSplit[1], 16)
 
-			val offset = parseLong(split[2], 16)
-			if (offset <= 0) continue
+			val offset = BigInteger(split[2], 16)
+
+			if (offset.toLong() <= 0 || start.compareTo(LONG_MAX_VALUE) > 0 || end.compareTo(LONG_MAX_VALUE) > 0) {
+				continue;
+			}
 
 			var path = "";
 			var i = 5
@@ -58,7 +63,7 @@ class LinuxProcess(override val id: Int) : Process {
 			}
 
 			val moduleName = path.substring(path.lastIndexOf("/") + 1, path.length)
-			modulesMap.put(moduleName, LinuxModule(start, this, moduleName, end - start))
+			modulesMap.put(moduleName, LinuxModule(start.toLong(), this, moduleName, end.toLong() - start.toLong()))
 		}
 	}
 
